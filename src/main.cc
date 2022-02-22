@@ -68,7 +68,7 @@ int main(int argc, char** argv)
 		// calc_rhs(rhs, prims, air, vlaw);
 		print("===============================");
 		{timing::scoped_tmr_t tmr("zero rhs"); alg::fill_array(rhs, init_zero);}
-		{timing::scoped_tmr_t tmr("calc rhs"); ComputeRhs_OLD(prims, rhs, air, vlaw);}
+		{timing::scoped_tmr_t tmr("calc rhs"); ComputeRhs_OLD(prims, rhs, air, vlaw);} // check src/temp/rhs_temp.h for this function
 		{timing::scoped_tmr_t tmr("advance");  Advance(prims, rhs, control.timestep, air);}
 		{timing::scoped_tmr_t tmr("exchange"); prims.Exchange();}
 	}
