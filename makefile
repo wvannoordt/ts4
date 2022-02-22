@@ -1,16 +1,29 @@
 FLAGS := -O3
+target := bin/ts4
+
+LIBS := 
+LIBS += -L${CMF}/lib -lcmf
+LIBS += -L${PTL}/lib -lPTL
+
+INCL :=
+INCL += -I.
+INCL += -I./src
+INCL += -I${CMF}/include
+INCL += -I${PTL}/include
+
 
 main: setup cmf
-	mpicxx -g --std=c++11 -I. -I./src -I${CMF}/include -I${PTL}/include ${FLAGS} src/main.cc -o pbc -L${CMF}/lib -lcmf -L${PTL}/lib -lPTL
+	mpicxx -g -std=c++20 ${FLAGS} ${INCL} -c src/main.cc -o obj/main.o ${LIBS}
+	mpicxx -g -std=c++20 ${FLAGS} ${INCL} obj/*.o -o ${target} ${LIBS}
 
 cmf:
 	make -C ${CMF} -f makefile
 
 setup:
-	mkdir -p output
-	mkdir -p checkpoint
+	mkdir -p bin
+	mkdir -p obj
 
 clean:
-	rm -f pbc
-	rm -r output
-	rm -r series
+	rm -f ${target}
+	rm -rf bin
+	rm -rf obj
