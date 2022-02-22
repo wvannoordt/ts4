@@ -7,26 +7,14 @@
 #include "fluid_state.h"
 #include "timing.h"
 #include "time_control.h"
-
-// #include "InputParams.h"
-// #include "InitialCondition.hpp"
-// #include "PrimsCons.hpp"
-// #include "Rhs.hpp"
-// #include "Integrate.hpp"
-// #include "GetTimestep.hpp"
+#include "viscous_laws.h"
+#include "temp/rhs_temp.h"
 
 using cmf::print;
 using cmf::strformat;
 using cmf::strunformat;
 using cmf::ZFill;
 
-struct TimeControl
-{
-	double time;
-	int nt;
-	int minStep = 0;
-	int maxStep = 0;
-};
 
 int main(int argc, char** argv)
 {
@@ -52,31 +40,39 @@ int main(int argc, char** argv)
 	
 	auto& rhs = domain.DefineVariable("rhs", cmf::CmfArrayType::CmfDouble, {5});
 	
-	gas::perfect_gas_t air{.R = 287.15, .gamma = 1.4};
+	gas::perfect_gas_t<double> air{.R = 287.15, .gamma = 1.4};
+	viscous_laws::constant_viscosity<double> vlaw{.visc = 1e-4};
 	
-	auto init_condition = [=](cmf::Vec3<double>& x) -> ctrs::array<double,5>
+	auto init_condition = [=](cmf::Vec3<double>& x) -> fluid_state::prim_t<double>
 	{
-		ctrs::array<double,5> out;
-		out[0] = 1000;
-		out[1] = 100;
-		out[2] = cos(10*x[0]);
-		out[3] = sin(15*x[1]);
-		out[4] = 0.0;
+		fluid_state::prim_t<double> out;
+		out.p() = 1000;
+		out.T() = 100;
+		out.u() = cos(10*x[0]);
+		out.v() = sin(15*x[1]);
+		out.w() = 0.0;
 		return out;
 	};
 	
-	auto init_zero = [](cmf::Vec3<double>& x) -> ctrs::array<double,5>
-	{
-		return ctrs::array<double,5>(3.0);
-	};
+	cmf::CreateDirectory("output");
+	prims.ExportFile("output", "initialCondition");
+	
+	auto init_zero = [](cmf::Vec3<double>& x) -> ctrs::array<double,5> { return ctrs::array<double,5>(0.0); };
 	
 	alg::fill_array(prims, init_condition);
-	alg::fill_array(rhs,   init_zero);
 	
 	prims.Exchange();
 	
-	cmf::CreateDirectory("output");
-	rhs.ExportFile("output", "initialCondition");
+	for (; control.nt <= control.numSteps; control++)
+	{
+		// calc_rhs(rhs, prims, air, vlaw);
+		print("===============================");
+		{timing::scoped_tmr_t tmr("zero rhs"); alg::fill_array(rhs, init_zero);}
+		{timing::scoped_tmr_t tmr("calc rhs"); ComputeRhs_OLD(prims, rhs, air, vlaw);}
+		{timing::scoped_tmr_t tmr("advance");  Advance(prims, rhs, control.timestep, air);}
+		{timing::scoped_tmr_t tmr("exchange"); prims.Exchange();}
+	}
+	
 	
 	
 	return 0;

@@ -6,10 +6,11 @@
 #include "fluid_state.h"
 using cmf::print;
 
-template <class T> concept returns_array_from_coords = requires (T t)
+template <class T> concept not_void = !(std::is_void_v<T>);
+template <class T> concept returns_array_from_coords = requires (T t, size_t idx, cmf::Vec3<double>& vec)
 {
-    std::is_convertible<decltype(t(std::declval<cmf::Vec3<double>&>()).size()), size_t>::value;
-    t(std::declval<cmf::Vec3<double>&>())[size_t()];
+    { t(vec).size() } -> std::convertible_to<size_t>;
+    { t(vec)[idx]   } -> not_void;
 };
 
 namespace alg

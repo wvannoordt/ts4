@@ -2,8 +2,8 @@
 
 namespace gas
 {
-    struct perfect_gas_t
+    template <typename dtype> struct perfect_gas_t
     {
-        double R, gamma;
+        dtype R, gamma;
     };
 }
