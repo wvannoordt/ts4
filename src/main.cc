@@ -9,6 +9,8 @@
 #include "time_control.h"
 #include "viscous_laws.h"
 #include "temp/rhs_temp.h"
+#include "mms.h"
+#include "calc_rhs.h"
 
 using cmf::print;
 using cmf::strformat;
@@ -32,6 +34,8 @@ int main(int argc, char** argv)
 	
 	auto& prims = domain.DefineVariable("prims", cmf::CmfArrayType::CmfDouble, {5});
 	
+	cmf::CreateDirectory("output");
+	
 	prims.ComponentName(0) = "P";
 	prims.ComponentName(1) = "T";
 	prims.ComponentName(2) = "U";
@@ -41,8 +45,15 @@ int main(int argc, char** argv)
 	auto& rhs = domain.DefineVariable("rhs", cmf::CmfArrayType::CmfDouble, {5});
 	
 	gas::perfect_gas_t<double> air{.R = 287.15, .gamma = 1.4};
-	viscous_laws::constant_viscosity<double> vlaw{.visc = 1e-4};
-	
+	viscous_laws::constant_viscosity_t<double> vlaw(1e-4);
+	vlaw.prandtl = 0.72;
+	mms::cns_pergectgas_mms_t<double> mms(air, vlaw);
+	mms::mms_settings_t mms_settings(cmf::mainInput["MMS"]);
+	if (mms_settings.doMMS)
+	{
+		mms::run_mms_test(prims, rhs, mms);
+		return 0;
+	}
 	auto init_condition = [=](cmf::Vec3<double>& x) -> fluid_state::prim_t<double>
 	{
 		fluid_state::prim_t<double> out;
@@ -53,8 +64,6 @@ int main(int argc, char** argv)
 		out.w() = 0.0;
 		return out;
 	};
-	
-	cmf::CreateDirectory("output");
 	prims.ExportFile("output", "initialCondition");
 	
 	auto init_zero = [](cmf::Vec3<double>& x) -> ctrs::array<double,5> { return ctrs::array<double,5>(0.0); };
@@ -68,12 +77,10 @@ int main(int argc, char** argv)
 		// calc_rhs(rhs, prims, air, vlaw);
 		print("===============================");
 		{timing::scoped_tmr_t tmr("zero rhs"); alg::fill_array(rhs, init_zero);}
-		{timing::scoped_tmr_t tmr("calc rhs"); ComputeRhs_OLD(prims, rhs, air, vlaw);} // check src/temp/rhs_temp.h for this function
+		// {timing::scoped_tmr_t tmr("calc rhs"); ComputeRhs_OLD(prims, rhs, air, vlaw);} // check src/temp/rhs_temp.h for this function
+		{timing::scoped_tmr_t tmr("calc rhs"); calc_conv(prims, rhs, air);}
 		{timing::scoped_tmr_t tmr("advance");  Advance(prims, rhs, control.timestep, air);}
 		{timing::scoped_tmr_t tmr("exchange"); prims.Exchange();}
 	}
-	
-	
-	
 	return 0;
 }

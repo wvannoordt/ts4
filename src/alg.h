@@ -16,11 +16,8 @@ template <class T> concept returns_array_from_coords = requires (T t, size_t idx
 namespace alg
 {
     //trying out some cool c++20 features
-    template <
-        returns_array_from_coords spatial_callable,
-        const guard_protocol::guard_protocol protocol=guard_protocol::exclude_guards
-        >
-    void fill_array(cmf::CartesianMeshArray& array, const spatial_callable& func)
+    template <returns_array_from_coords spatial_callable>
+    void fill_array(cmf::CartesianMeshArray& array, const spatial_callable& func, const guard_protocol::guard_protocol protocol=guard_protocol::exclude_guards)
     {
         for (auto lb: array)
         {
@@ -32,7 +29,7 @@ namespace alg
             cmf::cell_t j1 = info.jmax;
             cmf::cell_t k0 = info.kmin;
             cmf::cell_t k1 = info.kmax;
-            if constexpr (protocol==guard_protocol::include_guards)
+            if (protocol==guard_protocol::include_guards)
             {
                 i0 -= info.exchangeI;
                 i1 += info.exchangeI;

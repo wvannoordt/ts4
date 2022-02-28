@@ -26,7 +26,7 @@ namespace fluid_state
         rtype& operator [] (uint idx) {return data[idx];}
     };
     
-    template<class ptype, class ctype, class gastype> void prim_to_cons(ptype& prim, ctype& cons, const gastype& gas)
+    template<typename ptype, typename ctype, class gastype> void convert_state(prim_t<ptype>& prim, cons_t<ctype>& cons, const gastype& gas)
     {
         double rho = prim.p() / (gas.R*prim.T());
         double rhoU2 = rho*(prim.u()*prim.u()+prim.v()*prim.v()+prim.w()*prim.w());
@@ -41,7 +41,7 @@ namespace fluid_state
         cons.rho_w()  = rhoW;
     }
     
-    template<class ctype, class ptype, class gastype> void cons_to_prim(ctype& cons, ptype& prim, const gastype& gas)
+    template<typename ptype, typename ctype, class gastype> void convert_state(cons_t<ctype>& cons, prim_t<ptype>& prim, const gastype& gas)
     {
         double rho = cons.rho();
         double invrho = 1.0/rho;

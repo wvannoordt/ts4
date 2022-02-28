@@ -8,10 +8,10 @@
 
 namespace viscous_laws
 {
-    template <typename dtype> struct constant_viscosity
+    template <typename dtype> struct constant_viscosity_t
     {
-        constant_viscosity(dtype visc_in) { this->visc = visc_in; }
-        constant_viscosity(void) { this->visc = dtype(); }
+        constant_viscosity_t(dtype visc_in) { this->visc = visc_in; this->beta = 0.66666666667*this->visc; }
+        constant_viscosity_t(void) { this->visc = dtype(); this->beta = 0.66666666667*this->visc; }
         
         // template <prim_state_type state_type>dtype calc_visc(const state_type& q)
         template <class state_type>dtype calc_visc(const state_type& q)
@@ -21,5 +21,6 @@ namespace viscous_laws
         
         dtype visc;
         dtype prandtl;
+        dtype beta;
     };
 }

@@ -7,14 +7,12 @@
 using cmf::face_t;
 using cmf::cell_t;
 
-#define ALPHA 0.5
-
 #define stencilIdx(v,j) ((v)+(5+3)*(j))
 #define f_DivSplit(q,j,l,v1)         (0.500*(q[stencilIdx((v1),(j))] + q[stencilIdx((v1),(j)+(l))]))
 #define fg_QuadSplit(q,j,l,v1,v2)    (0.250*(q[stencilIdx((v1),(j))] + q[stencilIdx((v1),(j)+(l))])*(q[stencilIdx((v2),(j))] + q[stencilIdx((v2),(j)+(l))]))
 #define fg_CubeSplit(q,j,l,v1,v2,v3) (0.125*(q[stencilIdx((v1),(j))] + q[stencilIdx((v1),(j)+(l))])*(q[stencilIdx((v2),(j))] + q[stencilIdx((v2),(j)+(l))])*(q[stencilIdx((v3),(j))] + q[stencilIdx((v3),(j)+(l))]))
 #define fg_DivSplit(q,j,l,v1,v2)     (0.500*((q[stencilIdx((v1),(j)+(l))]*q[stencilIdx((v2),(j))]) + (q[stencilIdx((v1),(j))]*q[stencilIdx((v2),(j)+(l))])))
-void ComputeConv(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& rhs, int centOrder, gas::perfect_gas_t<double>& gas)
+void ComputeConv(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& rhs, int centOrder, gas::perfect_gas_t<double>& gas, double alpha)
 {
     double centerCoef[4] = {0.0};
     switch (centOrder)
@@ -112,13 +110,12 @@ void ComputeConv(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& rhs, i
                                 PDIFF[0] += 2.0*centerCoef[l-1]*fg_DivSplit(stencilData,jf+m,-l,5+idir,3);
                             }
                         }
-                        
-                        rhsLb(0, i, j, k)      -= (1.0-ALPHA)*info.dxInv[idir]*(C[1] - C[0]);
-                        rhsLb(1, i, j, k)      -= (1.0-ALPHA)*info.dxInv[idir]*(IE[1] + KE[1] + PDIFF[1] - IE[0] - KE[0] - PDIFF[0]);
-                        rhsLb(2, i, j, k)      -= (1.0-ALPHA)*info.dxInv[idir]*(M[0] - M[3]);
-                        rhsLb(3, i, j, k)      -= (1.0-ALPHA)*info.dxInv[idir]*(M[1] - M[4]);
-                        rhsLb(4, i, j, k)      -= (1.0-ALPHA)*info.dxInv[idir]*(M[2] - M[5]);
-                        rhsLb(2+idir, i, j, k) -= (1.0-ALPHA)*info.dxInv[idir]*(PGRAD[1] - PGRAD[0]);
+                        rhsLb(0, i, j, k)      -= (1.0-alpha)*info.dxInv[idir]*(C[1] - C[0]);
+                        rhsLb(1, i, j, k)      -= (1.0-alpha)*info.dxInv[idir]*(IE[1] + KE[1] + PDIFF[1] - IE[0] - KE[0] - PDIFF[0]);
+                        rhsLb(2, i, j, k)      -= (1.0-alpha)*info.dxInv[idir]*(M[0] - M[3]);
+                        rhsLb(3, i, j, k)      -= (1.0-alpha)*info.dxInv[idir]*(M[1] - M[4]);
+                        rhsLb(4, i, j, k)      -= (1.0-alpha)*info.dxInv[idir]*(M[2] - M[5]);
+                        rhsLb(2+idir, i, j, k) -= (1.0-alpha)*info.dxInv[idir]*(PGRAD[1] - PGRAD[0]);
                     }
                 }
             }
@@ -127,7 +124,7 @@ void ComputeConv(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& rhs, i
     }
 }
 
-void ComputeConvDiss(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& rhs, gas::perfect_gas_t<double>& gas)
+void ComputeConvDiss(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& rhs, gas::perfect_gas_t<double>& gas, double alpha)
 {
     double Rgas = gas.R;
     for (auto lb: prims)
@@ -219,7 +216,7 @@ void ComputeConvDiss(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& rh
                             // left
                             fluxR[n1] = weno3(fluxStencil(0, n1, 0), fluxStencil(1, n1, 0), fluxStencil(2, n1, 0), fluxStencil(3, n1, 0), fluxStencil(0, n1, 1), fluxStencil(1, n1, 1), fluxStencil(2, n1, 1), fluxStencil(3, n1, 1));
                             fluxL[n1] = weno3(fluxStencil(1, n1, 0), fluxStencil(2, n1, 0), fluxStencil(3, n1, 0), fluxStencil(4, n1, 0), fluxStencil(1, n1, 1), fluxStencil(2, n1, 1), fluxStencil(3, n1, 1), fluxStencil(4, n1, 1));
-                            rhsLb(n1, i, j, k) -= ALPHA*(fluxR[n1]-fluxL[n1])*info.dxInv[idir];
+                            rhsLb(n1, i, j, k) -= alpha*(fluxR[n1]-fluxL[n1])*info.dxInv[idir];
                         }
                     }
                 }
@@ -229,7 +226,7 @@ void ComputeConvDiss(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& rh
     }
 }
 
-void ComputeVisc(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& rhs, viscous_laws::constant_viscosity<double>& vlaw)
+void ComputeVisc(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& rhs, viscous_laws::constant_viscosity_t<double>& vlaw)
 {
     double beta = 0.0;
     for (auto lb: prims)
@@ -357,10 +354,10 @@ void ComputeVisc(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& rhs, v
     }
 }
 
-void ComputeRhs_OLD(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& rhs, gas::perfect_gas_t<double>& gas, viscous_laws::constant_viscosity<double>& vlaw)
+void ComputeRhs_OLD(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& rhs, gas::perfect_gas_t<double>& gas, viscous_laws::constant_viscosity_t<double>& vlaw)
 {
-    ComputeConv(prims, rhs, 2, gas);
-    ComputeConvDiss(prims, rhs, gas);
+    ComputeConv(prims, rhs, 2, gas, 0.5);
+    ComputeConvDiss(prims, rhs, gas, 0.5);
     ComputeVisc(prims, rhs, vlaw);
 }
 
@@ -379,9 +376,9 @@ void Advance(cmf::CartesianMeshArray& prims, cmf::CartesianMeshArray& rhs, doubl
                     fluid_state::prim_t<double> prim;
                     for (uint pp = 0; pp < 5; pp++) prim[pp] = primsLb(pp, i, j, k);
                     fluid_state::cons_t<double> cons;
-                    prim_to_cons(prim, cons, gas);
+                    convert_state(prim, cons, gas);
                     for (uint pp = 0; pp < 5; pp++) cons[pp] += delta_t * rhsLb(pp, i, j, k);
-                    cons_to_prim(cons, prim, gas);
+                    convert_state(cons, prim, gas);
                     for (uint pp = 0; pp < 5; pp++) primsLb(pp, i, j, k) = prim[pp];
                 }
             }
